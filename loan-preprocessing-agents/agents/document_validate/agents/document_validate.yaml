@@ -21,7 +21,7 @@ instructions: |
 
   ### Output Requirements
   * The final output should be in a single json summarizing all documents.
-llm: watsonx/mistralai/mistral-large
+llm: watsonx/mistralai/mistral-medium-2505
 style: default
 collaborators: []
 tools:

@@ -18,6 +18,7 @@ from utils.cos_client import COSClient
 from utils.agents import invoke_agents, get_logs
 from utils.chat_image import ChatWithImage
 from utils.kv_extraction import extract_key_value_pairs
+from utils.direct_watsonx import process_loan_application_direct
 
 # These are your local modules
 import models, schemas, security, database
@@ -41,7 +42,7 @@ app.add_middleware(
 
 COS_BUCKET_NAME = os.getenv("COS_BUCKET_NAME", "loan-processing-bucket")
 # --- File Handling ---
-UPLOAD_DIRECTORY = "./uploads"
+UPLOAD_DIRECTORY = "uploads"  # No ./ prefix for COS compatibility
 ZIP_FILE_PATH = "data/sample_documents.zip"
 os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
 def save_upload_file(upload_file: UploadFile, destination: str):
@@ -77,16 +78,28 @@ def process_application_in_background(app_id, uploaded_files, application_file_p
     if not application_to_update:
         print(f"BACKGROUND TASK ERROR: Application with ID {app_id} not found.")
         return
-    
+
     app_id_str = application_to_update.app_id_str
-    print("Processing application...")
-    application_status = invoke_agents(
-        document_names=", ".join(uploaded_files),
-        loan_application_file=application_file_path,
-        application_id=app_id_str
-    )
-    print("Application Status from Agents:\n", application_status)
-    # Update database with the final status from agents
+    print("Processing application with DIRECT WATSONX AI (bypassing Orchestrate agents)...")
+
+    try:
+        # Use direct Watsonx AI processing (bypasses non-functional Orchestrate agents)
+        application_status = process_loan_application_direct(
+            document_names=uploaded_files,  # Pass list directly, not comma-separated
+            loan_application_file=application_file_path
+        )
+        print("✅ Application Status from Direct Watsonx:\n", application_status)
+    except Exception as e:
+        print(f"❌ Direct Watsonx processing failed: {e}")
+        print("Falling back to Orchestrate agents...")
+        # Fallback to original agents method
+        application_status = invoke_agents(
+            document_names=", ".join(uploaded_files),
+            loan_application_file=application_file_path,
+            application_id=app_id_str
+        )
+
+    # Update database with the final status
     application_to_update.status = application_status.get("loan_application_status", "Processing Failed")
     validation_comments = application_status.get("validation_details", {"error": "Error processing application"})
     application_to_update.validation_comments = dict_to_markdown(validation_comments)

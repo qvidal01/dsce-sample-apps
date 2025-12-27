@@ -141,13 +141,35 @@ def get_response(message:str, agent_id: str, thread_id: Optional[str] = None, ap
 
 
 def invoke_agents(document_names, loan_application_file, application_id=None):
+    # Get COS bucket name from environment
+    COS_BUCKET_NAME = os.getenv("COS_BUCKET_NAME", "loan-processing-bucket")
+
+    # Format document list with clear structure
+    if isinstance(document_names, str):
+        doc_list = document_names.split(", ")
+    else:
+        doc_list = document_names
+
+    # Create formatted document list - keep full paths for tools to use
+    formatted_docs = "\n".join([f"- {doc}" for doc in doc_list])
+
     if application_id:
         log_to_db(application_id, "invoke_agent", "Invoking Document Processor Agent")
-    doc_processor_message = f"Classify and extract information from these documents - {document_names}"
+
+    # Give agent a simple task description followed by document list
+    doc_processor_message = f"Please process these documents:\n{formatted_docs}"
+
+    if application_id:
+        log_to_db(application_id, "debug_message_to_agent", f"Document processor message: {doc_processor_message}")
+
     doc_processor_response = get_response(doc_processor_message, DOC_PROCESSOR_AGENT_ID, application_id=application_id)
+
     if application_id:
         log_to_db(application_id, "invoke_agent", "Invoking Document Validator Agent")
-    doc_validation_message = f"Validate these documents - {document_names}"
+
+    # Give agent a simple task description followed by document list
+    doc_validation_message = f"Please validate these documents:\n{formatted_docs}"
+
     doc_validation_response = get_response(doc_validation_message, DOCUMENT_VALIDATION_AGENT_ID, application_id=application_id)
     if application_id:
         log_to_db(application_id, "invoke_agent", "Invoking Final Decision Agent")

@@ -70,7 +70,7 @@ instructions: |
   * Ensure all validation steps are completed before making final decision
   * Provide clear reasoning for rejection in validation_details
 
-llm: watsonx/mistralai/mistral-large
+llm: watsonx/mistralai/mistral-medium-2505
 style: default
 collaborators:
   - cross_validation
